@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg
+*.egg-info/
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/
+.venv/
+build/
+dist/
+*.sqlite3
+
+# Jupyter
+.ipynb_checkpoints/
+
+# macOS
+.DS_Store
+
+# VS Code
+.vscode/
+
+# Streamlit cache
+.streamlit/
+
+# Gitpod
+.gitpod.Dockerfile
+.gitpod.yml.lock
+
+# Logs
+*.log
