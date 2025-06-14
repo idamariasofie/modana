@@ -62,16 +62,13 @@ if st.button("📍 Log that period started today"):
     st.success("Logged today as a new period start!")
 
 # Load last known period
-last_period = today  # fallback
 try:
     period_log = pd.read_csv("period_log.csv")
     period_log["date"] = pd.to_datetime(period_log["date"])
-    if not period_log.empty:
-        last_period = period_log["date"].max().date()
-    else:
-        st.info("🕒 No previous periods logged yet.")
-except Exception:
-    st.info("🕒 No period history found. Start tracking to get cycle insights.")
+    last_period = period_log["date"].max().date()
+except:
+    last_period = today
+    st.info("🔔 When your period starts, tap the button above or enter the last known date to begin cycle tracking.")
 
 # Show period history with delete option
 if os.path.exists("period_log.csv"):
