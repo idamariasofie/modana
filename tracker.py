@@ -3,53 +3,104 @@ import pandas as pd
 from datetime import datetime, timedelta
 from sklearn.ensemble import RandomForestRegressor
 
-# ----- Konfiguration -----
-st.set_page_config(page_title="Hypotyreos Tracker", layout="centered")
-st.title("🧠 Hypotyreos Tracker MVP")
+# ----- App Config -----
+st.set_page_config(page_title="Hypothyroid Tracker", layout="centered")
+st.title("🧠 Hypothyroid Tracker – Detailed MVP")
 
-# ----- Menscykelinställningar i sidofältet -----
-st.sidebar.title("🩸 Cykelinställningar")
-period_start = st.sidebar.date_input("När började din senaste mens?")
+# ----- Menstrual Cycle Input -----
+st.sidebar.title("🩸 Cycle Settings")
+period_start = st.sidebar.date_input("When did your last period start?")
 
 def get_cycle_phase(current_date, period_start):
     cycle_length = 28
     days_since = (current_date - period_start).days % cycle_length
     if days_since <= 4:
-        return "Mens"
+        return "Menstruation"
     elif days_since <= 13:
-        return "Folikelfas"
+        return "Follicular"
     elif days_since <= 21:
-        return "Lutealfas"
+        return "Luteal"
     else:
         return "PMS"
 
 today = datetime.now().date()
 cycle_phase = get_cycle_phase(today, period_start)
-st.sidebar.markdown(f"**Du är i:** `{cycle_phase}`")
+st.sidebar.markdown(f"**Current phase:** `{cycle_phase}`")
 
-# ----- Daglig inmatning -----
-st.subheader("📅 Dagens inmatning")
+# ----- Daily Input Form -----
+st.subheader("📅 Daily Entry")
 date = today.strftime("%Y-%m-%d")
-sleep_hours = st.slider("🛏️ Hur många timmar sov du?", 0, 12, 7)
-tiredness = st.slider("😴 Trötthet (1–5)", 1, 5, 3)
-mood = st.slider("🙂 Humör (1–5)", 1, 5, 3)
-took_meds = st.checkbox("💊 Tog du Levaxin idag?")
-ate_gluten = st.checkbox("🍞 Åt du gluten idag?")
-exercise = st.checkbox("🏃‍♀️ Tränade du idag?")
-notes = st.text_area("📝 Anteckningar (valfritt)")
 
-if st.button("💾 Spara dagens data"):
+# Sleep & Mental State
+sleep_hours = st.slider("🛏️ Hours slept", 0, 12, 7)
+tiredness = st.slider("😴 Tiredness (1–5)", 1, 5, 3)
+mood = st.slider("🙂 Mood (1–5)", 1, 5, 3)
+energy = st.slider("⚡ Energy level (1–5)", 1, 5, 3)
+stress = st.slider("💼 Stress level (1–5)", 1, 5, 2)
+anxiety = st.slider("😟 Anxiety (1–5)", 1, 5, 2)
+
+# Medication
+took_meds = st.checkbox("💊 Took Levothyroxine today?")
+
+# Diet
+ate_gluten = st.checkbox("🍞 Ate gluten today?")
+ate_sugar = st.checkbox("🍬 Ate sugar today?")
+ate_dairy = st.checkbox("🥛 Ate dairy today?")
+ate_processed = st.checkbox("🍔 Ate processed food today?")
+
+# Fluids & Caffeine
+water = st.slider("💧 Water intake (dl)", 0, 50, 20)
+coffee_cups = st.slider("☕ Coffee cups", 0, 6, 2)
+last_coffee = st.time_input("🕒 Time of last coffee")
+
+# Exercise
+exercised = st.checkbox("🏃‍♀️ Did you exercise today?")
+if exercised:
+    exercise_type = st.selectbox("Type of exercise", ["Walk", "Strength", "Yoga", "Cardio", "Other"])
+    exercise_duration = st.slider("Duration (minutes)", 0, 180, 30)
+    exercise_intensity = st.radio("Intensity", ["Low", "Moderate", "High"])
+else:
+    exercise_type = ""
+    exercise_duration = 0
+    exercise_intensity = ""
+
+# External Factors
+weather = st.selectbox("🌦️ Weather impact", ["Sunny", "Cloudy", "Rainy", "Cold", "Hot"])
+temperature_feel = st.radio("🌡️ Temperature perception", ["Cold", "Normal", "Warm"])
+sleep_env = st.multiselect("🛌 Sleep environment", ["Quiet", "Noisy", "Warm", "Cool"])
+
+# Notes
+notes = st.text_area("📝 Additional notes (optional)")
+
+# ----- Save Data -----
+if st.button("💾 Save entry"):
     new_entry = pd.DataFrame([{
         "Date": date,
+        "CyclePhase": cycle_phase,
         "Sleep": sleep_hours,
         "Tiredness": tiredness,
         "Mood": mood,
-        "Med": took_meds,
+        "Energy": energy,
+        "Stress": stress,
+        "Anxiety": anxiety,
+        "TookMedication": took_meds,
         "Gluten": ate_gluten,
-        "Exercise": exercise,
-        "CyclePhase": cycle_phase,
+        "Sugar": ate_sugar,
+        "Dairy": ate_dairy,
+        "ProcessedFood": ate_processed,
+        "WaterIntake": water,
+        "CoffeeCups": coffee_cups,
+        "LastCoffee": str(last_coffee),
+        "Exercised": exercised,
+        "ExerciseType": exercise_type,
+        "ExerciseDuration": exercise_duration,
+        "ExerciseIntensity": exercise_intensity,
+        "Weather": weather,
+        "TempFeel": temperature_feel,
+        "SleepEnvironment": ", ".join(sleep_env),
         "Notes": notes
     }])
+
     try:
         existing = pd.read_csv("tracker_data.csv")
         df = pd.concat([existing, new_entry], ignore_index=True)
@@ -57,43 +108,47 @@ if st.button("💾 Spara dagens data"):
         df = new_entry
 
     df.to_csv("tracker_data.csv", index=False)
-    st.success("✅ Data sparad!")
+    st.success("✅ Entry saved!")
 
-# ----- Visualisering -----
-st.subheader("📊 Din historik")
+# ----- Data Preview -----
+st.subheader("📊 Your recent data")
 try:
     df = pd.read_csv("tracker_data.csv")
     st.write(df.tail(7))
-    st.line_chart(df.set_index("Date")[["Tiredness", "Mood", "Sleep"]])
+    st.line_chart(df.set_index("Date")[["Tiredness", "Mood", "Sleep", "Energy"]])
 except FileNotFoundError:
-    st.info("Ingen data sparad ännu. Fyll i formuläret ovan.")
+    st.info("No data saved yet. Fill out today's entry first.")
 
-# ----- Enkel AI-modell: Förutsäg trötthet -----
-st.subheader("🔍 AI-insikt – Förutsäg trötthet")
+# ----- AI Insight (Prediction) -----
+st.subheader("🔍 AI Insight – Predict your tiredness")
 
 try:
     df = pd.read_csv("tracker_data.csv")
-
-    # Säkerställ rätt datatyper
     df["Gluten"] = df["Gluten"].astype(int)
-    df["Exercise"] = df["Exercise"].astype(int)
+    df["Sugar"] = df["Sugar"].astype(int)
+    df["ProcessedFood"] = df["ProcessedFood"].astype(int)
+    df["Dairy"] = df["Dairy"].astype(int)
+    df["Exercised"] = df["Exercised"].astype(int)
 
-    X = df[["Sleep", "Mood", "Gluten", "Exercise"]]
+    X = df[["Sleep", "Mood", "Energy", "Stress", "Gluten", "Sugar", "ProcessedFood", "Exercised"]]
     y = df["Tiredness"]
 
     model = RandomForestRegressor()
     model.fit(X, y)
 
-    # Skapa indata från dagens registrering
     input_data = pd.DataFrame([[
         sleep_hours,
         mood,
+        energy,
+        stress,
         int(ate_gluten),
-        int(exercise)
-    ]], columns=["Sleep", "Mood", "Gluten", "Exercise"])
+        int(ate_sugar),
+        int(ate_processed),
+        int(exercised)
+    ]], columns=X.columns)
 
-    predicted_tiredness = model.predict(input_data)[0]
-    st.markdown(f"🧠 AI-modellen förutspår att din trötthet idag är: **{predicted_tiredness:.1f}**")
+    prediction = model.predict(input_data)[0]
+    st.markdown(f"🧠 AI predicts your tiredness today to be: **{prediction:.1f}**")
 
-except Exception as e:
-    st.warning("⚠️ För lite data för att AI-modellen ska kunna göra en förutsägelse ännu.")
+except Exception:
+    st.warning("⚠️ AI model cannot run yet – please log more days first.")
