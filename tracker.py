@@ -82,7 +82,7 @@ if os.path.exists("period_log.csv"):
         if col2.button("Delete", key=f"delete_{i}"):
             editable_log = editable_log.drop(index=i).reset_index(drop=True)
             editable_log.to_csv("period_log.csv", index=False)
-            st.experimental_rerun()
+            st.success("Deleted. Please reload the app manually to see changes.")
 
 # Compute cycle phase
 def get_cycle_phase(days_since):
