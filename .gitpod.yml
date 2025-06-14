@@ -1,0 +1,8 @@
+tasks:
+  - name: Installera paket och starta Streamlit
+    init: pip install -r requirements.txt
+    command: streamlit run tracker.py
+
+ports:
+  - port: 8501
+    onOpen: open-preview
