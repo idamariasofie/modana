@@ -208,12 +208,15 @@ else:
 # ----- Cycle Phase Insights -----
 st.subheader("📈 Insights by Cycle Phase")
 
-try:
-    if "CyclePhase" in df.columns:
-        phase_avg = df.groupby("CyclePhase")[["Tiredness", "Mood", "Energy", "Stress"]].mean()
-        st.dataframe(phase_avg.style.format("{:.2f}"))
-        st.markdown("This table shows your average levels across each menstrual phase.")
-    else:
-        st.info("Cycle phase data is missing in your logs.")
-except Exception as e:
-    st.error(f"Error analyzing by cycle phase: {e}")
+if 'df' in locals() or 'df' in globals():
+    try:
+        if "CyclePhase" in df.columns:
+            phase_avg = df.groupby("CyclePhase")[["Tiredness", "Mood", "Energy", "Stress"]].mean()
+            st.dataframe(phase_avg.style.format("{:.2f}"))
+            st.markdown("This table shows your average levels across each menstrual phase.")
+        else:
+            st.info("Cycle phase data is missing in your logs.")
+    except Exception as e:
+        st.error(f"Error analyzing by cycle phase: {e}")
+else:
+    st.info("No data loaded yet.")
