@@ -40,24 +40,26 @@ if st.button("Save this period start date"):
     new_period = pd.DataFrame([{"date": manual_period}])
     try:
         period_log = pd.read_csv("period_log.csv")
-        period_log = pd.concat([period_log, new_period], ignore_index=True).drop_duplicates().sort_values("date")
+        period_log = pd.concat([period_log, new_period], ignore_index=True)
+        period_log["date"] = pd.to_datetime(period_log["date"])
+        period_log = period_log.drop_duplicates().sort_values("date")
     except FileNotFoundError:
         period_log = new_period
     period_log.to_csv("period_log.csv", index=False)
     st.success(f"Saved {manual_period} as period start date.")
 
 # Option to log today as new period start
-today_period_log = False
 if st.button("📍 Log that period started today"):
     new_period = pd.DataFrame([{"date": today}])
     try:
         period_log = pd.read_csv("period_log.csv")
-        period_log = pd.concat([period_log, new_period], ignore_index=True).drop_duplicates().sort_values("date")
+        period_log = pd.concat([period_log, new_period], ignore_index=True)
+        period_log["date"] = pd.to_datetime(period_log["date"])
+        period_log = period_log.drop_duplicates().sort_values("date")
     except FileNotFoundError:
         period_log = new_period
     period_log.to_csv("period_log.csv", index=False)
     st.success("Logged today as a new period start!")
-    today_period_log = True
 
 # Load last known period
 try:
