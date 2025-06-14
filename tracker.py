@@ -2,6 +2,9 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 
+st.sidebar.title("🩸 Cykelinställningar")
+period_start = st.sidebar.date_input("När började din senaste mens?")
+
 st.set_page_config(page_title="Hypotyreos Tracker", layout="centered")
 st.title("🧠 Hypotyreos Tracker MVP")
 
