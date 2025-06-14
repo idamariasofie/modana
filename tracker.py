@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import os
 from datetime import datetime, timedelta
 from sklearn.ensemble import RandomForestRegressor
 
@@ -177,29 +178,32 @@ except Exception:
 # ----- Weekly Summary -----
 st.subheader("📆 Weekly Summary")
 
-try:
-    df = pd.read_csv("tracker_data.csv")
-    df["Date"] = pd.to_datetime(df["Date"])
-    last_7_days = df[df["Date"] >= pd.Timestamp.today() - pd.Timedelta(days=7)]
+if os.path.exists("tracker_data.csv"):
+    try:
+        df = pd.read_csv("tracker_data.csv")
+        df["Date"] = pd.to_datetime(df["Date"])
+        last_7_days = df[df["Date"] >= pd.Timestamp.today() - pd.Timedelta(days=7)]
 
-    if last_7_days.empty:
-        st.info("You need at least one week's worth of data to generate a summary.")
-    else:
-        st.markdown("### Averages (last 7 days)")
-        metrics = ["Tiredness", "Mood", "Energy", "Stress", "Anxiety", "Sleep"]
-        for metric in metrics:
-            if metric in last_7_days.columns:
-                avg = last_7_days[metric].mean()
-                st.write(f"**{metric}**: {avg:.2f}")
+        if last_7_days.empty:
+            st.info("You need at least one week's worth of data to generate a summary.")
+        else:
+            st.markdown("### Averages (last 7 days)")
+            metrics = ["Tiredness", "Mood", "Energy", "Stress", "Anxiety", "Sleep"]
+            for metric in metrics:
+                if metric in last_7_days.columns:
+                    avg = last_7_days[metric].mean()
+                    st.write(f"**{metric}**: {avg:.2f}")
 
-        st.markdown("### Most common notes")
-        if "Notes" in last_7_days.columns:
-            notes = last_7_days["Notes"].dropna().value_counts().head(3)
-            for i, (text, count) in enumerate(notes.items(), 1):
-                st.write(f"{i}. {text} ({count}x)")
+            st.markdown("### Most common notes")
+            if "Notes" in last_7_days.columns:
+                notes = last_7_days["Notes"].dropna().value_counts().head(3)
+                for i, (text, count) in enumerate(notes.items(), 1):
+                    st.write(f"{i}. {text} ({count}x)")
 
-except Exception as e:
-    st.error(f"Error generating weekly summary: {e}")
+    except Exception as e:
+        st.error(f"Error generating weekly summary: {e}")
+else:
+    st.info("No data file found yet. Save your first entry to begin tracking.")
 
 # ----- Cycle Phase Insights -----
 st.subheader("📈 Insights by Cycle Phase")
