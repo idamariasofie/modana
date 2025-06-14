@@ -3,6 +3,27 @@ import pandas as pd
 from datetime import datetime, timedelta
 from sklearn.ensemble import RandomForestRegressor
 
+# ----- Simple Password Protection -----
+def check_password():
+    def password_entered():
+        if st.session_state["password"] == "mysecretpass":  # 🔑 Change this to your own password!
+            st.session_state["authenticated"] = True
+        else:
+            st.session_state["authenticated"] = False
+            st.error("Incorrect password")
+
+    if "authenticated" not in st.session_state:
+        st.text_input("🔐 Enter password:", type="password", on_change=password_entered, key="password")
+        return False
+    elif not st.session_state["authenticated"]:
+        st.text_input("🔐 Enter password:", type="password", on_change=password_entered, key="password")
+        return False
+    else:
+        return True
+
+if not check_password():
+    st.stop()
+
 # ----- App Config -----
 st.set_page_config(page_title="Hypothyroid Tracker", layout="centered")
 st.title("🧠 Hypothyroid Tracker – Detailed MVP")
