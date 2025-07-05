@@ -41,7 +41,6 @@ with tab2:
     today = datetime.now().date()
     period_file = "data/period_log.csv"
 
-    # Load period log
     period_log = pd.DataFrame()
     last_period = today
 
@@ -58,14 +57,13 @@ with tab2:
     else:
         st.info("🕒 No period history found. Start tracking to get cycle insights.")
 
-    # Input + save manual period
     manual_period = st.date_input("If you already know your last period start date, enter it here:", value=today)
     if st.button("Save this period start date"):
         new_period = pd.DataFrame([{"date": manual_period}])
         try:
             period_log = pd.read_csv(period_file)
             period_log["date"] = pd.to_datetime(period_log["date"])
-            if manual_period not in period_log["date"].dt.date.values:
+            if pd.Timestamp(manual_period) not in period_log["date"].values:
                 period_log = pd.concat([period_log, new_period], ignore_index=True)
                 period_log = period_log.drop_duplicates().sort_values("date")
                 period_log.to_csv(period_file, index=False)
@@ -76,13 +74,12 @@ with tab2:
             new_period.to_csv(period_file, index=False)
             st.success(f"Saved {manual_period} as first period entry.")
 
-    # Quick log today
     if st.button("📍 Log that period started today"):
         new_period = pd.DataFrame([{"date": today}])
         try:
             period_log = pd.read_csv(period_file)
             period_log["date"] = pd.to_datetime(period_log["date"])
-            if today not in period_log["date"].dt.date.values:
+            if pd.Timestamp(today) not in period_log["date"].values:
                 period_log = pd.concat([period_log, new_period], ignore_index=True)
                 period_log = period_log.drop_duplicates().sort_values("date")
                 period_log.to_csv(period_file, index=False)
@@ -93,7 +90,6 @@ with tab2:
             new_period.to_csv(period_file, index=False)
             st.success("Logged today as first period entry!")
 
-    # Period log history
     if os.path.exists(period_file):
         st.markdown("### 🕰 Your period log history")
         period_log = pd.read_csv(period_file)
@@ -108,7 +104,6 @@ with tab2:
                 st.success("Deleted.")
                 st.experimental_rerun()
 
-    # 🔁 Calculate average cycle length
     def get_user_average_cycle_length():
         try:
             df = pd.read_csv(period_file)
@@ -119,9 +114,8 @@ with tab2:
                 return int(diffs.mean())
         except Exception:
             pass
-        return 28  # fallback default
+        return 28
 
-    # 🧠 Cycle phase logic
     def get_cycle_phase(days_since, cycle_length):
         if days_since <= 4:
             return "Menstruation"
@@ -144,7 +138,6 @@ with tab2:
         }
         return suggestions.get(cycle_phase, "Move intuitively.")
 
-    # 🧮 Compute current phase
     days_since = (today - last_period).days
     user_cycle_length = get_user_average_cycle_length()
     cycle_phase = get_cycle_phase(days_since, cycle_length=user_cycle_length)
@@ -152,16 +145,17 @@ with tab2:
     st.markdown(f"**Current cycle phase:** `{cycle_phase}`")
     st.markdown(f"💡 **Suggested exercise today:** _{suggest_exercise(cycle_phase)}_")
 
-    # 📥 Download log
     if os.path.exists(period_file):
         with open(period_file, "rb") as f:
             st.download_button("⬇️ Download your period log", f, file_name="period_log.csv")
     else:
         st.info("📬 No period data available yet.")
 
+
 with tab1:
     st.subheader("📅 Daily Entry")
-    date = datetime.now().date().strftime("%Y-%m-%d")
+    tracker_file = "data/tracker_data.csv"
+    date = today.strftime("%Y-%m-%d")
 
     sleep_hours = st.slider("🛌 Hours slept", 0, 12, 7)
     tiredness = st.slider("😴 Tiredness (1–5)", 1, 5, 3)
@@ -171,33 +165,14 @@ with tab1:
     stress = st.slider("💼 Stress level (1–5)", 1, 5, 2)
     anxiety = st.slider("😟 Anxiety (1–5)", 1, 5, 2)
 
-    if self_worth <= 2:
-        st.error("💔 You're feeling low in confidence today.")
-        st.markdown("""
-It’s okay to feel this way. Many people experience a deep drop in self-worth — especially during certain times in the cycle.
-
-You’re not alone. You’re not broken. And this moment will pass.
-
-> _“For many years, my New Year’s wish was to feel happy. One New Year’s Eve, I realized I didn’t have to wish anymore — I could choose to live differently. By caring for my body and mind, I could start creating the life I wanted. And so can you.”_
-""")
-        if cycle_phase in ["Luteal", "PMS or Irregular"]:
-            st.info("This phase is often linked to lower confidence and increased inner criticism. Be extra gentle with yourself today.")
-        with st.expander("📝 Want to reflect?"):
-            st.markdown("""
-- What is my inner voice saying today?
-- What would I say to a friend feeling like I do now?
-- What do I need most right now?
-- Is this part of a recurring pattern?
-""")
-
     took_meds = st.checkbox("💊 Took Levothyroxine today?")
     feeling_swollen = st.checkbox("🧨 Feeling swollen today?")
 
     st.markdown("### 💥 Pain symptoms")
     pain_level = st.slider("Overall pain level (0–10)", 0, 10, 0)
-    headache = st.checkbox("🤕 Headache")
-    stomach_pain = st.checkbox("🤢 Stomach pain")
-    joint_pain = st.checkbox("🦴 Joint or muscle pain")
+    headache = st.checkbox("🫥 Headache")
+    stomach_pain = st.checkbox("🦢 Stomach pain")
+    joint_pain = st.checkbox("🧴 Joint or muscle pain")
 
     ate_gluten = st.checkbox("🍞 Ate gluten today?")
     ate_sugar = st.checkbox("🍬 Ate sugar today?")
@@ -223,12 +198,11 @@ You’re not alone. You’re not broken. And this moment will pass.
     sleep_env = st.multiselect("🛌 Sleep environment", ["Quiet", "Noisy", "Warm", "Cool"])
     notes = st.text_area("📝 Additional notes (optional)")
 
-    if st.button("📂 Save entry"):
+    if st.button("💾 Save entry"):
         new_entry = pd.DataFrame([{
-            "Date": date, "CyclePhase": cycle_phase if 'cycle_phase' in locals() else "",
-            "Sleep": sleep_hours, "Tiredness": tiredness, "Mood": mood,
-            "SelfWorth": self_worth, "Energy": energy, "Stress": stress, "Anxiety": anxiety,
-            "TookMedication": took_meds, "FeelingSwollen": feeling_swollen,
+            "Date": date, "CyclePhase": cycle_phase, "Sleep": sleep_hours,
+            "Tiredness": tiredness, "Mood": mood, "SelfWorth": self_worth, "Energy": energy,
+            "Stress": stress, "Anxiety": anxiety, "TookMedication": took_meds, "FeelingSwollen": feeling_swollen,
             "PainLevel": pain_level, "Headache": headache, "StomachPain": stomach_pain, "JointPain": joint_pain,
             "Gluten": ate_gluten, "Sugar": ate_sugar, "Dairy": ate_dairy, "ProcessedFood": ate_processed,
             "WaterIntake": water, "CoffeeCups": coffee_cups, "LastCoffee": str(last_coffee),
@@ -237,7 +211,6 @@ You’re not alone. You’re not broken. And this moment will pass.
             "SleepEnvironment": ", ".join(sleep_env), "Notes": notes
         }])
 
-        tracker_file = "data/tracker_data.csv"
         try:
             existing = pd.read_csv(tracker_file)
             if date in existing["Date"].values:
@@ -250,8 +223,8 @@ You’re not alone. You’re not broken. And this moment will pass.
         df.to_csv(tracker_file, index=False)
         st.success("✅ Entry saved!")
 
-    if os.path.exists("data/tracker_data.csv"):
-        with open("data/tracker_data.csv", "rb") as f:
+    if os.path.exists(tracker_file):
+        with open(tracker_file, "rb") as f:
             st.download_button("⬇️ Download your log as CSV", f, file_name="tracker_data.csv")
     else:
-        st.info("📭 You haven't saved any entries yet.")
+        st.info("📬 You haven't saved any entries yet.")
