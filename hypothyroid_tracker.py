@@ -47,7 +47,8 @@ with tab2:
     if os.path.exists(period_file):
         try:
             period_log = pd.read_csv(period_file)
-            period_log["date"] = pd.to_datetime(period_log["date"])
+            period_log["date"] = pd.to_datetime(period_log["date"], errors="coerce")
+            period_log = period_log.dropna(subset=["date"])
             if not period_log.empty:
                 last_period = period_log["date"].max().date()
             else:
@@ -59,10 +60,11 @@ with tab2:
 
     manual_period = st.date_input("If you already know your last period start date, enter it here:", value=today)
     if st.button("Save this period start date"):
-        new_period = pd.DataFrame([{"date": manual_period}])
+        new_period = pd.DataFrame([{"date": pd.Timestamp(manual_period)}])
         try:
             period_log = pd.read_csv(period_file)
-            period_log["date"] = pd.to_datetime(period_log["date"])
+            period_log["date"] = pd.to_datetime(period_log["date"], errors="coerce")
+            period_log = period_log.dropna(subset=["date"])
             if pd.Timestamp(manual_period) not in period_log["date"].values:
                 period_log = pd.concat([period_log, new_period], ignore_index=True)
                 period_log = period_log.drop_duplicates().sort_values("date")
@@ -75,10 +77,11 @@ with tab2:
             st.success(f"Saved {manual_period} as first period entry.")
 
     if st.button("📍 Log that period started today"):
-        new_period = pd.DataFrame([{"date": today}])
+        new_period = pd.DataFrame([{"date": pd.Timestamp(today)}])
         try:
             period_log = pd.read_csv(period_file)
-            period_log["date"] = pd.to_datetime(period_log["date"])
+            period_log["date"] = pd.to_datetime(period_log["date"], errors="coerce")
+            period_log = period_log.dropna(subset=["date"])
             if pd.Timestamp(today) not in period_log["date"].values:
                 period_log = pd.concat([period_log, new_period], ignore_index=True)
                 period_log = period_log.drop_duplicates().sort_values("date")
