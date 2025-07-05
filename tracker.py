@@ -196,3 +196,10 @@ with tab1:
 
         df.to_csv(tracker_file, index=False)
         st.success("✅ Entry saved!")
+    
+    # 💾 Ladda ner menscykellogg
+    if os.path.exists(period_file):
+        with open(period_file, "rb") as f:
+            st.download_button("⬇️ Download your period log", f, file_name="period_log.csv")
+    else:
+        st.info("📭 No period data available yet.")
