@@ -41,6 +41,7 @@ with tab2:
     today = datetime.now().date()
     period_file = "data/period_log.csv"
 
+    # Load period log
     period_log = pd.DataFrame()
     last_period = today
 
@@ -57,6 +58,7 @@ with tab2:
     else:
         st.info("🕒 No period history found. Start tracking to get cycle insights.")
 
+    # Input + save manual period
     manual_period = st.date_input("If you already know your last period start date, enter it here:", value=today)
     if st.button("Save this period start date"):
         new_period = pd.DataFrame([{"date": manual_period}])
@@ -74,6 +76,7 @@ with tab2:
             new_period.to_csv(period_file, index=False)
             st.success(f"Saved {manual_period} as first period entry.")
 
+    # Quick log today
     if st.button("📍 Log that period started today"):
         new_period = pd.DataFrame([{"date": today}])
         try:
@@ -90,6 +93,7 @@ with tab2:
             new_period.to_csv(period_file, index=False)
             st.success("Logged today as first period entry!")
 
+    # Period log history
     if os.path.exists(period_file):
         st.markdown("### 🕰 Your period log history")
         period_log = pd.read_csv(period_file)
@@ -104,14 +108,28 @@ with tab2:
                 st.success("Deleted.")
                 st.experimental_rerun()
 
-    def get_cycle_phase(days_since, cycle_length=28):
+    # 🔁 Calculate average cycle length
+    def get_user_average_cycle_length():
+        try:
+            df = pd.read_csv(period_file)
+            df["date"] = pd.to_datetime(df["date"])
+            df = df.sort_values("date")
+            if len(df) >= 2:
+                diffs = df["date"].diff().dropna().dt.days
+                return int(diffs.mean())
+        except Exception:
+            pass
+        return 28  # fallback default
+
+    # 🧠 Cycle phase logic
+    def get_cycle_phase(days_since, cycle_length):
         if days_since <= 4:
             return "Menstruation"
-        elif days_since <= (cycle_length // 2) - 2:
+        elif 5 <= days_since <= 12:
             return "Follicular"
-        elif days_since <= cycle_length - 7:
+        elif 13 <= days_since <= 16:
             return "Ovulation"
-        elif days_since <= cycle_length:
+        elif 17 <= days_since <= cycle_length:
             return "Luteal"
         else:
             return "PMS or Irregular"
@@ -126,11 +144,15 @@ with tab2:
         }
         return suggestions.get(cycle_phase, "Move intuitively.")
 
+    # 🧮 Compute current phase
     days_since = (today - last_period).days
-    cycle_phase = get_cycle_phase(days_since)
+    user_cycle_length = get_user_average_cycle_length()
+    cycle_phase = get_cycle_phase(days_since, cycle_length=user_cycle_length)
+
     st.markdown(f"**Current cycle phase:** `{cycle_phase}`")
     st.markdown(f"💡 **Suggested exercise today:** _{suggest_exercise(cycle_phase)}_")
 
+    # 📥 Download log
     if os.path.exists(period_file):
         with open(period_file, "rb") as f:
             st.download_button("⬇️ Download your period log", f, file_name="period_log.csv")
