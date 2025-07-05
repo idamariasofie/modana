@@ -105,7 +105,7 @@ with tab2:
                 editable_log = editable_log.drop(index=i).reset_index(drop=True)
                 editable_log.to_csv(period_file, index=False)
                 st.success("Deleted.")
-                st.experimental_rerun()
+                st.rerun()
 
     def get_user_average_cycle_length():
         try:
