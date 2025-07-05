@@ -105,7 +105,7 @@ with tab2:
                 editable_log = editable_log.drop(index=i).reset_index(drop=True)
                 editable_log.to_csv(period_file, index=False)
                 st.success("Deleted.")
-                st.rerun()
+                st.experimental_rerun()
 
     def get_user_average_cycle_length():
         try:
@@ -161,10 +161,10 @@ with tab1:
     date = today.strftime("%Y-%m-%d")
 
     sleep_hours = st.slider("🛌 Hours slept", 0, 12, 7)
-    tiredness = st.slider("😴 Tiredness (1–5)", 1, 5, 3)
-    mood = st.slider("🙂 Mood (1–5)", 1, 5, 3)
+    tiredness = st.radio("😴 Tiredness (1–5)", options=[1, 2, 3, 4, 5], index=2, horizontal=True)
+    mood = st.radio("🙂 Mood (1–5)", options=[1, 2, 3, 4, 5], index=2, horizontal=True)
     self_worth = st.slider("🪞 Self-worth / confidence (1–5)", 1, 5, 3)
-    energy = st.slider("⚡ Energy level (1–5)", 1, 5, 3)
+    energy = st.radio("⚡ Energy level (1–5)", options=[1, 2, 3, 4, 5], index=2, horizontal=True)
     stress = st.slider("💼 Stress level (1–5)", 1, 5, 2)
     anxiety = st.slider("😟 Anxiety (1–5)", 1, 5, 2)
 
