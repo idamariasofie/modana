@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 import os
@@ -138,4 +139,6 @@ with tab2:
         with open(period_file, "rb") as f:
             st.download_button("⬇️ Download your period log", f, file_name="period_log.csv")
     else:
-        st.info("📬 No period data available yet.") 
+        st.info("📬 No period data available yet.")
+
+# tab1 (Daily Log) is re-added separately due to length
