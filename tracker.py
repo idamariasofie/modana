@@ -33,7 +33,7 @@ st.set_page_config(page_title="Hypothyroid Tracker", layout="centered")
 st.title("🧠 Hypothyroid Tracker – Detailed MVP")
 
 # ----- App Layout Tabs -----
-tab1, tab2 = st.tabs(["📝 Daily Log", "🩸 Cycle Tracking"])
+tab1, tab2 = st.tabs(["📜 Daily Log", "🦨 Cycle Tracking"])
 
 with tab2:
     st.markdown("### 🧬 Cycle Tracking")
@@ -113,23 +113,48 @@ with tab2:
         else:
             return "PMS or Irregular"
 
+    def suggest_exercise(cycle_phase):
+        suggestions = {
+            "Menstruation": "Restorative yoga, light stretching, or rest.",
+            "Follicular": "Cardio, strength training – good time for intense movement.",
+            "Ovulation": "High-intensity workouts, group training.",
+            "Luteal": "Moderate movement like walking, yoga, swimming.",
+            "PMS or Irregular": "Gentle yoga, breathing exercises, journaling."
+        }
+        return suggestions.get(cycle_phase, "Move intuitively.")
+
     days_since = (today - last_period).days
     cycle_phase = get_cycle_phase(days_since)
     st.markdown(f"**Current cycle phase:** `{cycle_phase}`")
+    st.markdown(f"💡 **Suggested exercise today:** _{suggest_exercise(cycle_phase)}_")
+
+    # 📂 Download period log
+    if os.path.exists(period_file):
+        with open(period_file, "rb") as f:
+            st.download_button("⬇️ Download your period log", f, file_name="period_log.csv")
+    else:
+        st.info("📬 No period data available yet.")
 
 with tab1:
     st.subheader("📅 Daily Entry")
-
     date = today.strftime("%Y-%m-%d")
 
-    sleep_hours = st.slider("🛏️ Hours slept", 0, 12, 7)
-    tiredness = st.slider("😴 Tiredness (1–5)", 1, 5, 3)
+    sleep_hours = st.slider("🛌 Hours slept", 0, 12, 7)
+    tiredness = st.slider("🛌️ Tiredness (1–5)", 1, 5, 3)
     mood = st.slider("🙂 Mood (1–5)", 1, 5, 3)
+    self_worth = st.slider("🪞 Self-worth / confidence (1–5)", 1, 5, 3)
     energy = st.slider("⚡ Energy level (1–5)", 1, 5, 3)
-    stress = st.slider("💼 Stress level (1–5)", 1, 5, 2)
+    stress = st.slider("🛌 Stress level (1–5)", 1, 5, 2)
     anxiety = st.slider("😟 Anxiety (1–5)", 1, 5, 2)
 
     took_meds = st.checkbox("💊 Took Levothyroxine today?")
+    feeling_swollen = st.checkbox("🧨 Feeling swollen today?")
+
+    st.markdown("### 💥 Pain symptoms")
+    pain_level = st.slider("Overall pain level (0–10)", 0, 10, 0)
+    headache = st.checkbox("🫥 Headache")
+    stomach_pain = st.checkbox("🦢 Stomach pain")
+    joint_pain = st.checkbox("🧴 Joint or muscle pain")
 
     ate_gluten = st.checkbox("🍞 Ate gluten today?")
     ate_sugar = st.checkbox("🍬 Ate sugar today?")
@@ -153,35 +178,19 @@ with tab1:
     weather = st.selectbox("🌦️ Weather impact", ["Sunny", "Cloudy", "Rainy", "Cold", "Hot"])
     temperature_feel = st.radio("🌡️ Temperature perception", ["Cold", "Normal", "Warm"])
     sleep_env = st.multiselect("🛌 Sleep environment", ["Quiet", "Noisy", "Warm", "Cool"])
-
     notes = st.text_area("📝 Additional notes (optional)")
 
-    if st.button("💾 Save entry"):
-        new_entry = pd.DataFrame([{
-            "Date": date,
-            "CyclePhase": cycle_phase,
-            "Sleep": sleep_hours,
-            "Tiredness": tiredness,
-            "Mood": mood,
-            "Energy": energy,
-            "Stress": stress,
-            "Anxiety": anxiety,
-            "TookMedication": took_meds,
-            "Gluten": ate_gluten,
-            "Sugar": ate_sugar,
-            "Dairy": ate_dairy,
-            "ProcessedFood": ate_processed,
-            "WaterIntake": water,
-            "CoffeeCups": coffee_cups,
-            "LastCoffee": str(last_coffee),
-            "Exercised": exercised,
-            "ExerciseType": exercise_type,
-            "ExerciseDuration": exercise_duration,
-            "ExerciseIntensity": exercise_intensity,
-            "Weather": weather,
-            "TempFeel": temperature_feel,
-            "SleepEnvironment": ", ".join(sleep_env),
-            "Notes": notes
+    if st.button("📂 Save entry"):
+        new_entry = pd.DataFrame([{ 
+            "Date": date, "CyclePhase": cycle_phase, "Sleep": sleep_hours,
+            "Tiredness": tiredness, "Mood": mood, "SelfWorth": self_worth, "Energy": energy,
+            "Stress": stress, "Anxiety": anxiety, "TookMedication": took_meds, "FeelingSwollen": feeling_swollen,
+            "PainLevel": pain_level, "Headache": headache, "StomachPain": stomach_pain, "JointPain": joint_pain,
+            "Gluten": ate_gluten, "Sugar": ate_sugar, "Dairy": ate_dairy, "ProcessedFood": ate_processed,
+            "WaterIntake": water, "CoffeeCups": coffee_cups, "LastCoffee": str(last_coffee),
+            "Exercised": exercised, "ExerciseType": exercise_type, "ExerciseDuration": exercise_duration,
+            "ExerciseIntensity": exercise_intensity, "Weather": weather, "TempFeel": temperature_feel,
+            "SleepEnvironment": ", ".join(sleep_env), "Notes": notes
         }])
 
         tracker_file = "data/tracker_data.csv"
@@ -196,10 +205,9 @@ with tab1:
 
         df.to_csv(tracker_file, index=False)
         st.success("✅ Entry saved!")
-    
-    # 💾 Ladda ner menscykellogg
-    if os.path.exists(period_file):
-        with open(period_file, "rb") as f:
-            st.download_button("⬇️ Download your period log", f, file_name="period_log.csv")
+
+    if os.path.exists(tracker_file):
+        with open(tracker_file, "rb") as f:
+            st.download_button("⬇️ Download your log as CSV", f, file_name="tracker_data.csv")
     else:
-        st.info("📭 No period data available yet.")
+        st.info("📬 You haven't saved any entries yet.")
