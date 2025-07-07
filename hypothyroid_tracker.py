@@ -157,71 +157,126 @@ with tab2:
 
 with tab1:
     st.subheader("📅 Daily Entry")
+
     tracker_file = "data/tracker_data.csv"
-    date = today.strftime("%Y-%m-%d")
+    today = datetime.now().date()
 
-    sleep_hours = st.slider("🛌 Hours slept", 0, 12, 7)
-    tiredness = st.radio("😴 Tiredness (1–5)", options=[1, 2, 3, 4, 5], index=2, horizontal=True)
-    mood = st.radio("🙂 Mood (1–5)", options=[1, 2, 3, 4, 5], index=2, horizontal=True)
-    self_worth = st.slider("🪞 Self-worth / confidence (1–5)", 1, 5, 3)
-    energy = st.radio("⚡ Energy level (1–5)", options=[1, 2, 3, 4, 5], index=2, horizontal=True)
-    stress = st.slider("💼 Stress level (1–5)", 1, 5, 2)
-    anxiety = st.slider("😟 Anxiety (1–5)", 1, 5, 2)
+    # Select entry type and date
+    entry_type = st.radio("Which entry are you making?", ["🌅 Morning", "🌙 Evening"], horizontal=True)
+    log_date = st.date_input("Select date of entry (defaults to today)", value=today)
 
-    took_meds = st.checkbox("💊 Took Levothyroxine today?")
-    feeling_swollen = st.checkbox("🧨 Feeling swollen today?")
+    formatted_date = log_date.strftime("%Y-%m-%d")
+    short_type = "Morning" if "Morning" in entry_type else "Evening"
 
-    st.markdown("### 💥 Pain symptoms")
-    pain_level = st.slider("Overall pain level (0–10)", 0, 10, 0)
-    headache = st.checkbox("🫥 Headache")
-    stomach_pain = st.checkbox("🦢 Stomach pain")
-    joint_pain = st.checkbox("🧴 Joint or muscle pain")
+    # Load cycle phase from last period
+    days_since = (log_date - last_period).days
+    user_cycle_length = get_user_average_cycle_length()
+    cycle_phase = get_cycle_phase(days_since, cycle_length=user_cycle_length)
 
-    ate_gluten = st.checkbox("🍞 Ate gluten today?")
-    ate_sugar = st.checkbox("🍬 Ate sugar today?")
-    ate_dairy = st.checkbox("🥛 Ate dairy today?")
-    ate_processed = st.checkbox("🍔 Ate processed food today?")
+    st.markdown(f"**Cycle phase for {log_date.strftime('%Y-%m-%d')}:** `{cycle_phase}`")
+    st.markdown(f"💡 _Suggested movement:_ {suggest_exercise(cycle_phase)}")
 
-    water = st.slider("💧 Water intake (dl)", 0, 50, 20)
-    coffee_cups = st.slider("☕ Coffee cups", 0, 6, 2)
-    last_coffee = st.time_input("🕒 Time of last coffee")
+    new_entry = {
+        "Date": formatted_date,
+        "EntryType": short_type,
+        "CyclePhase": cycle_phase,
+    }
 
-    exercised = st.checkbox("🏃‍♀️ Did you exercise today?")
-    if exercised:
-        exercise_type = st.selectbox("Type of exercise", ["Walk", "Strength", "Yoga", "Cardio", "Other"])
-        exercise_duration = st.slider("Duration (minutes)", 0, 180, 30)
-        exercise_intensity = st.radio("Intensity", ["Low", "Moderate", "High"])
-    else:
-        exercise_type = ""
-        exercise_duration = 0
-        exercise_intensity = ""
+    if short_type == "Morning":
+        st.markdown("### 🌅 Morning Log")
+        sleep_hours = st.slider("🛌 Hours slept", 0, 12, 7)
+        mood = st.radio("🙂 Mood (1–5)", options=[1, 2, 3, 4, 5], index=2, horizontal=True)
+        energy = st.radio("⚡ Energy level (1–5)", options=[1, 2, 3, 4, 5], index=2, horizontal=True)
+        self_worth = st.slider("🪞 Self-worth / confidence (1–5)", 1, 5, 3)
 
-    weather = st.selectbox("🌦️ Weather impact", ["Sunny", "Cloudy", "Rainy", "Cold", "Hot"])
-    temperature_feel = st.radio("🌡️ Temperature perception", ["Cold", "Normal", "Warm"])
-    sleep_env = st.multiselect("🛌 Sleep environment", ["Quiet", "Noisy", "Warm", "Cool"])
-    notes = st.text_area("📝 Additional notes (optional)")
+        new_entry.update({
+            "Sleep": sleep_hours,
+            "Mood": mood,
+            "Energy": energy,
+            "SelfWorth": self_worth,
+        })
 
+    elif short_type == "Evening":
+        st.markdown("### 🌙 Evening Log")
+
+        # Evening-only entries
+        tiredness = st.radio("😴 Tiredness (1–5)", [1, 2, 3, 4, 5], index=2, horizontal=True)
+        stress = st.slider("💼 Stress level (1–5)", 1, 5, 2)
+        anxiety = st.slider("😟 Anxiety (1–5)", 1, 5, 2)
+        took_meds = st.checkbox("💊 Took Levothyroxine today?")
+        feeling_swollen = st.checkbox("🧨 Feeling swollen today?")
+
+        st.markdown("### 💥 Pain symptoms")
+        pain_level = st.slider("Overall pain level (0–10)", 0, 10, 0)
+        headache = st.checkbox("🫥 Headache")
+        stomach_pain = st.checkbox("🦢 Stomach pain")
+        joint_pain = st.checkbox("🧴 Joint or muscle pain")
+
+        ate_gluten = st.checkbox("🍞 Ate gluten today?")
+        ate_sugar = st.checkbox("🍬 Ate sugar today?")
+        ate_dairy = st.checkbox("🥛 Ate dairy today?")
+        ate_processed = st.checkbox("🍔 Ate processed food today?")
+
+        water = st.slider("💧 Water intake (dl)", 0, 50, 20)
+        coffee_cups = st.slider("☕ Coffee cups", 0, 6, 2)
+        last_coffee = st.time_input("🕒 Time of last coffee")
+
+        exercised = st.checkbox("🏃‍♀️ Did you exercise today?")
+        if exercised:
+            exercise_type = st.selectbox("Type of exercise", ["Walk", "Strength", "Yoga", "Cardio", "Other"])
+            exercise_duration = st.slider("Duration (minutes)", 0, 180, 30)
+            exercise_intensity = st.radio("Intensity", ["Low", "Moderate", "High"])
+        else:
+            exercise_type = ""
+            exercise_duration = 0
+            exercise_intensity = ""
+
+        weather = st.selectbox("🌦️ Weather impact", ["Sunny", "Cloudy", "Rainy", "Cold", "Hot"])
+        temperature_feel = st.radio("🌡️ Temperature perception", ["Cold", "Normal", "Warm"])
+        sleep_env = st.multiselect("🛌 Sleep environment", ["Quiet", "Noisy", "Warm", "Cool"])
+        notes = st.text_area("📝 Additional notes (optional)")
+
+        new_entry.update({
+            "Tiredness": tiredness,
+            "Stress": stress,
+            "Anxiety": anxiety,
+            "TookMedication": took_meds,
+            "FeelingSwollen": feeling_swollen,
+            "PainLevel": pain_level,
+            "Headache": headache,
+            "StomachPain": stomach_pain,
+            "JointPain": joint_pain,
+            "Gluten": ate_gluten,
+            "Sugar": ate_sugar,
+            "Dairy": ate_dairy,
+            "ProcessedFood": ate_processed,
+            "WaterIntake": water,
+            "CoffeeCups": coffee_cups,
+            "LastCoffee": str(last_coffee),
+            "Exercised": exercised,
+            "ExerciseType": exercise_type,
+            "ExerciseDuration": exercise_duration,
+            "ExerciseIntensity": exercise_intensity,
+            "Weather": weather,
+            "TempFeel": temperature_feel,
+            "SleepEnvironment": ", ".join(sleep_env),
+            "Notes": notes
+        })
+
+    # Save entry
     if st.button("💾 Save entry"):
-        new_entry = pd.DataFrame([{
-            "Date": date, "CyclePhase": cycle_phase, "Sleep": sleep_hours,
-            "Tiredness": tiredness, "Mood": mood, "SelfWorth": self_worth, "Energy": energy,
-            "Stress": stress, "Anxiety": anxiety, "TookMedication": took_meds, "FeelingSwollen": feeling_swollen,
-            "PainLevel": pain_level, "Headache": headache, "StomachPain": stomach_pain, "JointPain": joint_pain,
-            "Gluten": ate_gluten, "Sugar": ate_sugar, "Dairy": ate_dairy, "ProcessedFood": ate_processed,
-            "WaterIntake": water, "CoffeeCups": coffee_cups, "LastCoffee": str(last_coffee),
-            "Exercised": exercised, "ExerciseType": exercise_type, "ExerciseDuration": exercise_duration,
-            "ExerciseIntensity": exercise_intensity, "Weather": weather, "TempFeel": temperature_feel,
-            "SleepEnvironment": ", ".join(sleep_env), "Notes": notes
-        }])
+        entry_df = pd.DataFrame([new_entry])
 
         try:
             existing = pd.read_csv(tracker_file)
-            if date in existing["Date"].values:
-                st.warning("An entry for today already exists. Overwriting...")
-                existing = existing[existing["Date"] != date]
-            df = pd.concat([existing, new_entry], ignore_index=True)
+            existing["Date"] = pd.to_datetime(existing["Date"]).dt.date
+            entry_date = pd.to_datetime(formatted_date).date()
+
+            # Remove matching entry if exists
+            existing = existing[~((existing["Date"] == entry_date) & (existing["EntryType"] == short_type))]
+            df = pd.concat([existing, entry_df], ignore_index=True)
         except FileNotFoundError:
-            df = new_entry
+            df = entry_df
 
         df.to_csv(tracker_file, index=False)
         st.success("✅ Entry saved!")
