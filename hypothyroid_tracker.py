@@ -1,11 +1,10 @@
-
 import streamlit as st
 import pandas as pd
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, date
 from sklearn.ensemble import RandomForestRegressor
 
-# ----- Ensure Data Directory Exists -----
+# ----- Setup -----
 os.makedirs("data", exist_ok=True)
 
 # ----- Simple Password Protection -----
@@ -16,12 +15,11 @@ def check_password():
         else:
             st.session_state["authenticated"] = False
             st.error("Incorrect password")
-
     if "authenticated" not in st.session_state:
-        st.text_input("🔐 Enter password:", type="password", on_change=password_entered, key="password")
+        st.text_input("Enter password:", type="password", on_change=password_entered, key="password")
         return False
     elif not st.session_state["authenticated"]:
-        st.text_input("🔐 Enter password:", type="password", on_change=password_entered, key="password")
+        st.text_input("Enter password:", type="password", on_change=password_entered, key="password")
         return False
     else:
         return True
@@ -31,14 +29,117 @@ if not check_password():
 
 # ----- App Config -----
 st.set_page_config(page_title="Hypothyroid Tracker", layout="centered")
-st.title("🧠 Hypothyroid Tracker – Detailed MVP")
+st.title("Hypothyroid Tracker")
 
-# ----- App Layout Tabs -----
-tab1, tab2 = st.tabs(["📜 Daily Log", "🦨 Cycle Tracking"])
+# ----- Tabs -----
+tab1, tab2 = st.tabs(["Daily Check-In", "Cycle Overview"])
+
+# ---- Tab 1: Daily Log ----
+with tab1:
+    st.header("How are you today?")
+    selected_date = st.date_input("Log for date:", value=date.today())
+    entry_time = st.radio("Entry Type", ["Morning", "Evening"], horizontal=True)
+
+    sleep_hours = st.slider("Hours slept", 0, 12, 7)
+    tiredness = st.radio("Tiredness (1–5)", options=[1, 2, 3, 4, 5], horizontal=True)
+    mood = st.radio("Mood (1–5)", options=[1, 2, 3, 4, 5], horizontal=True)
+    self_worth = st.radio("Self-worth (1–5)", options=[1, 2, 3, 4, 5], horizontal=True)
+    energy = st.radio("Energy (1–5)", options=[1, 2, 3, 4, 5], horizontal=True)
+    stress = st.radio("Stress (1–5)", options=[1, 2, 3, 4, 5], horizontal=True)
+    anxiety = st.radio("Anxiety (1–5)", options=[1, 2, 3, 4, 5], horizontal=True)
+
+    took_meds = st.checkbox("Took medication today?")
+    swollen = st.checkbox("Feeling swollen?")
+    pain_level = st.slider("Overall pain (0–10)", 0, 10, 0)
+    headache = st.checkbox("Headache")
+    stomach = st.checkbox("Stomach pain")
+    joints = st.checkbox("Joint or muscle pain")
+
+    ate_gluten = st.checkbox("Ate gluten")
+    ate_sugar = st.checkbox("Ate sugar")
+    ate_dairy = st.checkbox("Ate dairy")
+    processed = st.checkbox("Ate processed food")
+
+    water = st.slider("Water intake (dl)", 0, 50, 20)
+    coffee = st.slider("Coffee cups", 0, 6, 2)
+    last_coffee = st.time_input("Last coffee time")
+
+    exercised = st.checkbox("Exercised today?")
+    if exercised:
+        ex_type = st.selectbox("Exercise type", ["Walk", "Strength", "Yoga", "Cardio", "Other"])
+        ex_duration = st.slider("Duration (min)", 0, 180, 30)
+        ex_intensity = st.radio("Intensity", ["Low", "Moderate", "High"], horizontal=True)
+    else:
+        ex_type = ""
+        ex_duration = 0
+        ex_intensity = ""
+
+    weather = st.selectbox("Weather", ["Sunny", "Cloudy", "Rainy", "Cold", "Hot"])
+    temp_feel = st.radio("Temperature feel", ["Cold", "Normal", "Warm"], horizontal=True)
+    sleep_env = st.multiselect("Sleep environment", ["Quiet", "Noisy", "Warm", "Cool"])
+    notes = st.text_area("Anything else to note?")
+
+    log_file = "data/tracker_data.csv"
+    log_id = f"{selected_date}_{entry_time}"
+
+    if st.button("Save entry"):
+        new_entry = pd.DataFrame([{
+            "Date": selected_date,
+            "Entry": entry_time,
+            "Sleep": sleep_hours,
+            "Tiredness": tiredness,
+            "Mood": mood,
+            "SelfWorth": self_worth,
+            "Energy": energy,
+            "Stress": stress,
+            "Anxiety": anxiety,
+            "Medication": took_meds,
+            "Swollen": swollen,
+            "Pain": pain_level,
+            "Headache": headache,
+            "StomachPain": stomach,
+            "JointPain": joints,
+            "Gluten": ate_gluten,
+            "Sugar": ate_sugar,
+            "Dairy": ate_dairy,
+            "Processed": processed,
+            "Water": water,
+            "Coffee": coffee,
+            "LastCoffee": str(last_coffee),
+            "Exercised": exercised,
+            "ExerciseType": ex_type,
+            "ExerciseDuration": ex_duration,
+            "ExerciseIntensity": ex_intensity,
+            "Weather": weather,
+            "TempFeel": temp_feel,
+            "SleepEnv": ", ".join(sleep_env),
+            "Notes": notes
+        }])
+        try:
+            existing = pd.read_csv(log_file)
+            existing["ID"] = existing["Date"].astype(str) + "_" + existing["Entry"]
+            new_entry["ID"] = log_id
+            existing = existing[existing["ID"] != log_id]
+            df = pd.concat([existing, new_entry], ignore_index=True)
+        except:
+            df = new_entry
+            df["ID"] = log_id
+        df.drop(columns=["ID"], inplace=True)
+        df.to_csv(log_file, index=False)
+        st.success("Entry saved successfully.")
+
+    if os.path.exists(log_file):
+        with open(log_file, "rb") as f:
+            st.download_button("Download my data", f, file_name="tracker_data.csv")
+
+# The Cycle Tracking tab will be in part 2 of this code
+
+# ------------------------ CYCLE TRACKING TAB ------------------------
 
 with tab2:
-    st.markdown("### 🧬 Cycle Tracking")
-    today = datetime.now().date()
+    st.header("Cycle Phase Insight")
+
+    today = date.today()
     period_file = "data/period_log.csv"
 
     period_log = pd.DataFrame()
@@ -51,15 +152,13 @@ with tab2:
             period_log = period_log.dropna(subset=["date"])
             if not period_log.empty:
                 last_period = period_log["date"].max().date()
-            else:
-                st.info("🕒 No previous periods logged yet.")
         except Exception:
-            st.warning("⚠️ Could not read period log file.")
+            st.warning("Could not read period log file.")
     else:
-        st.info("🕒 No period history found. Start tracking to get cycle insights.")
+        st.info("No period history found yet.")
 
-    manual_period = st.date_input("If you already know your last period start date, enter it here:", value=today)
-    if st.button("Save this period start date"):
+    manual_period = st.date_input("Log a new period start date", value=today)
+    if st.button("Save period start date"):
         new_period = pd.DataFrame([{"date": pd.Timestamp(manual_period)}])
         try:
             period_log = pd.read_csv(period_file)
@@ -69,43 +168,12 @@ with tab2:
                 period_log = pd.concat([period_log, new_period], ignore_index=True)
                 period_log = period_log.drop_duplicates().sort_values("date")
                 period_log.to_csv(period_file, index=False)
-                st.success(f"Saved {manual_period} as period start date.")
+                st.success(f"{manual_period} saved.")
             else:
-                st.warning(f"{manual_period} is already logged.")
+                st.warning("Date already exists.")
         except FileNotFoundError:
             new_period.to_csv(period_file, index=False)
-            st.success(f"Saved {manual_period} as first period entry.")
-
-    if st.button("📍 Log that period started today"):
-        new_period = pd.DataFrame([{"date": pd.Timestamp(today)}])
-        try:
-            period_log = pd.read_csv(period_file)
-            period_log["date"] = pd.to_datetime(period_log["date"], errors="coerce")
-            period_log = period_log.dropna(subset=["date"])
-            if pd.Timestamp(today) not in period_log["date"].values:
-                period_log = pd.concat([period_log, new_period], ignore_index=True)
-                period_log = period_log.drop_duplicates().sort_values("date")
-                period_log.to_csv(period_file, index=False)
-                st.success("Logged today as a new period start!")
-            else:
-                st.warning("Today's date is already logged.")
-        except FileNotFoundError:
-            new_period.to_csv(period_file, index=False)
-            st.success("Logged today as first period entry!")
-
-    if os.path.exists(period_file):
-        st.markdown("### 🕰 Your period log history")
-        period_log = pd.read_csv(period_file)
-        period_log["date"] = pd.to_datetime(period_log["date"]).dt.date
-        editable_log = period_log.sort_values("date", ascending=False).reset_index(drop=True)
-        for i, row in editable_log.iterrows():
-            col1, col2 = st.columns([4, 1])
-            col1.write(f"{row['date']}")
-            if col2.button("Delete", key=f"delete_{i}"):
-                editable_log = editable_log.drop(index=i).reset_index(drop=True)
-                editable_log.to_csv(period_file, index=False)
-                st.success("Deleted.")
-                st.experimental_rerun()
+            st.success("First period entry saved.")
 
     def get_user_average_cycle_length():
         try:
@@ -133,156 +201,18 @@ with tab2:
 
     def suggest_exercise(cycle_phase):
         suggestions = {
-            "Menstruation": "Restorative yoga, light stretching, or rest.",
-            "Follicular": "Cardio, strength training – good time for intense movement.",
-            "Ovulation": "High-intensity workouts, group training.",
-            "Luteal": "Moderate movement like walking, yoga, swimming.",
-            "PMS or Irregular": "Gentle yoga, breathing exercises, journaling."
+            "Menstruation": "Gentle yoga, rest, short walks.",
+            "Follicular": "Strength training, cardio.",
+            "Ovulation": "High-intensity workouts.",
+            "Luteal": "Moderate movement: swimming, pilates.",
+            "PMS or Irregular": "Mindful movement and rest."
         }
-        return suggestions.get(cycle_phase, "Move intuitively.")
+        return suggestions.get(cycle_phase, "Move in a way that feels right.")
 
     days_since = (today - last_period).days
     user_cycle_length = get_user_average_cycle_length()
-    cycle_phase = get_cycle_phase(days_since, cycle_length=user_cycle_length)
+    cycle_phase = get_cycle_phase(days_since, user_cycle_length)
 
-    st.markdown(f"**Current cycle phase:** `{cycle_phase}`")
-    st.markdown(f"💡 **Suggested exercise today:** _{suggest_exercise(cycle_phase)}_")
-
-    if os.path.exists(period_file):
-        with open(period_file, "rb") as f:
-            st.download_button("⬇️ Download your period log", f, file_name="period_log.csv")
-    else:
-        st.info("📬 No period data available yet.")
-
-
-with tab1:
-    st.subheader("📅 Daily Entry")
-
-    tracker_file = "data/tracker_data.csv"
-    today = datetime.now().date()
-
-    # Select entry type and date
-    entry_type = st.radio("Which entry are you making?", ["🌅 Morning", "🌙 Evening"], horizontal=True)
-    log_date = st.date_input("Select date of entry (defaults to today)", value=today)
-
-    formatted_date = log_date.strftime("%Y-%m-%d")
-    short_type = "Morning" if "Morning" in entry_type else "Evening"
-
-    # Load cycle phase from last period
-    days_since = (log_date - last_period).days
-    user_cycle_length = get_user_average_cycle_length()
-    cycle_phase = get_cycle_phase(days_since, cycle_length=user_cycle_length)
-
-    st.markdown(f"**Cycle phase for {log_date.strftime('%Y-%m-%d')}:** `{cycle_phase}`")
-    st.markdown(f"💡 _Suggested movement:_ {suggest_exercise(cycle_phase)}")
-
-    new_entry = {
-        "Date": formatted_date,
-        "EntryType": short_type,
-        "CyclePhase": cycle_phase,
-    }
-
-    if short_type == "Morning":
-        st.markdown("### 🌅 Morning Log")
-        sleep_hours = st.slider("🛌 Hours slept", 0, 12, 7)
-        mood = st.radio("🙂 Mood (1–5)", options=[1, 2, 3, 4, 5], index=2, horizontal=True)
-        energy = st.radio("⚡ Energy level (1–5)", options=[1, 2, 3, 4, 5], index=2, horizontal=True)
-        self_worth = st.slider("🪞 Self-worth / confidence (1–5)", 1, 5, 3)
-
-        new_entry.update({
-            "Sleep": sleep_hours,
-            "Mood": mood,
-            "Energy": energy,
-            "SelfWorth": self_worth,
-        })
-
-    elif short_type == "Evening":
-        st.markdown("### 🌙 Evening Log")
-
-        # Evening-only entries
-        tiredness = st.radio("😴 Tiredness (1–5)", [1, 2, 3, 4, 5], index=2, horizontal=True)
-        stress = st.slider("💼 Stress level (1–5)", 1, 5, 2)
-        anxiety = st.slider("😟 Anxiety (1–5)", 1, 5, 2)
-        took_meds = st.checkbox("💊 Took Levothyroxine today?")
-        feeling_swollen = st.checkbox("🧨 Feeling swollen today?")
-
-        st.markdown("### 💥 Pain symptoms")
-        pain_level = st.slider("Overall pain level (0–10)", 0, 10, 0)
-        headache = st.checkbox("🫥 Headache")
-        stomach_pain = st.checkbox("🦢 Stomach pain")
-        joint_pain = st.checkbox("🧴 Joint or muscle pain")
-
-        ate_gluten = st.checkbox("🍞 Ate gluten today?")
-        ate_sugar = st.checkbox("🍬 Ate sugar today?")
-        ate_dairy = st.checkbox("🥛 Ate dairy today?")
-        ate_processed = st.checkbox("🍔 Ate processed food today?")
-
-        water = st.slider("💧 Water intake (dl)", 0, 50, 20)
-        coffee_cups = st.slider("☕ Coffee cups", 0, 6, 2)
-        last_coffee = st.time_input("🕒 Time of last coffee")
-
-        exercised = st.checkbox("🏃‍♀️ Did you exercise today?")
-        if exercised:
-            exercise_type = st.selectbox("Type of exercise", ["Walk", "Strength", "Yoga", "Cardio", "Other"])
-            exercise_duration = st.slider("Duration (minutes)", 0, 180, 30)
-            exercise_intensity = st.radio("Intensity", ["Low", "Moderate", "High"])
-        else:
-            exercise_type = ""
-            exercise_duration = 0
-            exercise_intensity = ""
-
-        weather = st.selectbox("🌦️ Weather impact", ["Sunny", "Cloudy", "Rainy", "Cold", "Hot"])
-        temperature_feel = st.radio("🌡️ Temperature perception", ["Cold", "Normal", "Warm"])
-        sleep_env = st.multiselect("🛌 Sleep environment", ["Quiet", "Noisy", "Warm", "Cool"])
-        notes = st.text_area("📝 Additional notes (optional)")
-
-        new_entry.update({
-            "Tiredness": tiredness,
-            "Stress": stress,
-            "Anxiety": anxiety,
-            "TookMedication": took_meds,
-            "FeelingSwollen": feeling_swollen,
-            "PainLevel": pain_level,
-            "Headache": headache,
-            "StomachPain": stomach_pain,
-            "JointPain": joint_pain,
-            "Gluten": ate_gluten,
-            "Sugar": ate_sugar,
-            "Dairy": ate_dairy,
-            "ProcessedFood": ate_processed,
-            "WaterIntake": water,
-            "CoffeeCups": coffee_cups,
-            "LastCoffee": str(last_coffee),
-            "Exercised": exercised,
-            "ExerciseType": exercise_type,
-            "ExerciseDuration": exercise_duration,
-            "ExerciseIntensity": exercise_intensity,
-            "Weather": weather,
-            "TempFeel": temperature_feel,
-            "SleepEnvironment": ", ".join(sleep_env),
-            "Notes": notes
-        })
-
-    # Save entry
-    if st.button("💾 Save entry"):
-        entry_df = pd.DataFrame([new_entry])
-
-        try:
-            existing = pd.read_csv(tracker_file)
-            existing["Date"] = pd.to_datetime(existing["Date"]).dt.date
-            entry_date = pd.to_datetime(formatted_date).date()
-
-            # Remove matching entry if exists
-            existing = existing[~((existing["Date"] == entry_date) & (existing["EntryType"] == short_type))]
-            df = pd.concat([existing, entry_df], ignore_index=True)
-        except FileNotFoundError:
-            df = entry_df
-
-        df.to_csv(tracker_file, index=False)
-        st.success("✅ Entry saved!")
-
-    if os.path.exists(tracker_file):
-        with open(tracker_file, "rb") as f:
-            st.download_button("⬇️ Download your log as CSV", f, file_name="tracker_data.csv")
-    else:
-        st.info("📬 You haven't saved any entries yet.")
+    st.subheader(f"Today’s Cycle Phase: {cycle_phase}")
+    st.caption(f"Based on your average cycle of ~{user_cycle_length} days")
+    st.markdown(f"**Suggested movement:** _{suggest_exercise(cycle_phase)}_")
