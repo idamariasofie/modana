@@ -115,16 +115,17 @@ with tab1:
             "SleepEnv": ", ".join(sleep_env),
             "Notes": notes
         }])
+        new_entry["LogID"] = log_id
+
         try:
             existing = pd.read_csv(log_file)
-            existing["ID"] = existing["Date"].astype(str) + "_" + existing["Entry"]
-            new_entry["ID"] = log_id
-            existing = existing[existing["ID"] != log_id]
+            existing["LogID"] = existing["Date"].astype(str) + "_" + existing["Entry"]
+            existing = existing[existing["LogID"] != log_id]
             df = pd.concat([existing, new_entry], ignore_index=True)
-        except:
-            df = new_entry
-            df["ID"] = log_id
-        df.drop(columns=["ID"], inplace=True)
+            df.drop(columns=["LogID"], inplace=True)
+        except FileNotFoundError:
+            df = new_entry.drop(columns=["LogID"])
+
         df.to_csv(log_file, index=False)
         st.success("Entry saved successfully.")
 
@@ -132,16 +133,12 @@ with tab1:
         with open(log_file, "rb") as f:
             st.download_button("Download my data", f, file_name="tracker_data.csv")
 
-# The Cycle Tracking tab will be in part 2 of this code
-
-# ------------------------ CYCLE TRACKING TAB ------------------------
-
+# -------------------- CYCLE TRACKING --------------------
 with tab2:
     st.header("Cycle Phase Insight")
 
     today = date.today()
     period_file = "data/period_log.csv"
-
     period_log = pd.DataFrame()
     last_period = today
 
