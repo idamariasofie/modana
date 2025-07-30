@@ -10,23 +10,24 @@ os.makedirs("data", exist_ok=True)
 log_file = "data/tracker_data.csv"
 period_file = "data/period_log.csv"
 
-# ----- Säker CSV-hantering -----
+# ----- Safe CSV handling -----
 def safe_load_csv(file):
     try:
         if os.path.exists(file):
             df = pd.read_csv(file)
             return df
     except Exception:
-        st.warning(f"⚠️ {file} var korrupt – ny fil skapas.")
+        st.warning(f"⚠️ {file} was corrupted – a new file will be created.")
     return pd.DataFrame()
 
 def safe_save_csv(df, file):
+    """Safe saving with a temporary file to prevent corruption."""
     try:
         temp_file = tempfile.NamedTemporaryFile(delete=False, mode='w', newline='')
         df.to_csv(temp_file.name, index=False)
         shutil.move(temp_file.name, file)
     except Exception as e:
-        st.error(f"❌ Kunde inte spara filen {file}: {e}")
+        st.error(f"❌ Could not save file {file}: {e}")
 
 # ----- Simple Password Protection -----
 def check_password():
@@ -102,6 +103,7 @@ with tab1:
 
     log_id = f"{selected_date}_{entry_time}"
 
+    # --- SAVE ENTRY ---
     if st.button("Save entry"):
         new_entry = pd.DataFrame([{
             "Date": selected_date,
@@ -137,16 +139,28 @@ with tab1:
         }])
         new_entry["LogID"] = log_id
 
-        existing = safe_load_csv(log_file)
-        if not existing.empty:
-            existing["LogID"] = existing["Date"].astype(str) + "_" + existing["Entry"]
-            existing = existing[existing["LogID"] != log_id]
-        df = pd.concat([existing, new_entry], ignore_index=True)
-        df.drop(columns=["LogID"], inplace=True)
+        try:
+            if os.path.exists(log_file):
+                # Create backup before changes
+                backup_file = "data/tracker_data_backup.csv"
+                pd.read_csv(log_file).to_csv(backup_file, index=False)
 
-        safe_save_csv(df, log_file)
-        st.success("✅ Entry saved successfully.")
+                existing = pd.read_csv(log_file)
 
-    if os.path.exists(log_file):
-        with open(log_file, "rb") as f:
-            st.download_button("Download my data", f, file_name="tracker_data.csv")
+                # Check column structure
+                if not all(col in existing.columns for col in new_entry.columns if col != "LogID"):
+                    st.error("⚠️ File structure seems to have changed – data was not saved. Please check your CSV file.")
+                    st.stop()
+
+                existing["LogID"] = existing["Date"].astype(str) + "_" + existing["Entry"]
+                existing = existing[existing["LogID"] != log_id]
+                df = pd.concat([existing, new_entry], ignore_index=True)
+                df.drop(columns=["LogID"], inplace=True)
+            else:
+                df = new_entry.drop(columns=["LogID"])
+
+            safe_save_csv(df, log_file)
+            st.success("✅ Entry saved successfully (backup created).")
+
+        except Exception as e:
+            st.error(f"❌ An unexpected error occurred: {e}")
