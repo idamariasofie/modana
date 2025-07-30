@@ -1,11 +1,32 @@
 import streamlit as st
 import pandas as pd
 import os
+import tempfile
+import shutil
 from datetime import datetime, date
-from sklearn.ensemble import RandomForestRegressor
 
 # ----- Setup -----
 os.makedirs("data", exist_ok=True)
+log_file = "data/tracker_data.csv"
+period_file = "data/period_log.csv"
+
+# ----- Säker CSV-hantering -----
+def safe_load_csv(file):
+    try:
+        if os.path.exists(file):
+            df = pd.read_csv(file)
+            return df
+    except Exception:
+        st.warning(f"⚠️ {file} var korrupt – ny fil skapas.")
+    return pd.DataFrame()
+
+def safe_save_csv(df, file):
+    try:
+        temp_file = tempfile.NamedTemporaryFile(delete=False, mode='w', newline='')
+        df.to_csv(temp_file.name, index=False)
+        shutil.move(temp_file.name, file)
+    except Exception as e:
+        st.error(f"❌ Kunde inte spara filen {file}: {e}")
 
 # ----- Simple Password Protection -----
 def check_password():
@@ -79,7 +100,6 @@ with tab1:
     sleep_env = st.multiselect("Sleep environment", ["Quiet", "Noisy", "Warm", "Cool"])
     notes = st.text_area("Anything else to note?")
 
-    log_file = "data/tracker_data.csv"
     log_id = f"{selected_date}_{entry_time}"
 
     if st.button("Save entry"):
@@ -117,99 +137,16 @@ with tab1:
         }])
         new_entry["LogID"] = log_id
 
-        try:
-            existing = pd.read_csv(log_file)
+        existing = safe_load_csv(log_file)
+        if not existing.empty:
             existing["LogID"] = existing["Date"].astype(str) + "_" + existing["Entry"]
             existing = existing[existing["LogID"] != log_id]
-            df = pd.concat([existing, new_entry], ignore_index=True)
-            df.drop(columns=["LogID"], inplace=True)
-        except FileNotFoundError:
-            df = new_entry.drop(columns=["LogID"])
+        df = pd.concat([existing, new_entry], ignore_index=True)
+        df.drop(columns=["LogID"], inplace=True)
 
-        df.to_csv(log_file, index=False)
-        st.success("Entry saved successfully.")
+        safe_save_csv(df, log_file)
+        st.success("✅ Entry saved successfully.")
 
     if os.path.exists(log_file):
         with open(log_file, "rb") as f:
             st.download_button("Download my data", f, file_name="tracker_data.csv")
-
-# -------------------- CYCLE TRACKING --------------------
-with tab2:
-    st.header("Cycle Phase Insight")
-
-    today = date.today()
-    period_file = "data/period_log.csv"
-    period_log = pd.DataFrame()
-    last_period = today
-
-    if os.path.exists(period_file):
-        try:
-            period_log = pd.read_csv(period_file)
-            period_log["date"] = pd.to_datetime(period_log["date"], errors="coerce")
-            period_log = period_log.dropna(subset=["date"])
-            if not period_log.empty:
-                last_period = period_log["date"].max().date()
-        except Exception:
-            st.warning("Could not read period log file.")
-    else:
-        st.info("No period history found yet.")
-
-    manual_period = st.date_input("Log a new period start date", value=today)
-    if st.button("Save period start date"):
-        new_period = pd.DataFrame([{"date": pd.Timestamp(manual_period)}])
-        try:
-            period_log = pd.read_csv(period_file)
-            period_log["date"] = pd.to_datetime(period_log["date"], errors="coerce")
-            period_log = period_log.dropna(subset=["date"])
-            if pd.Timestamp(manual_period) not in period_log["date"].values:
-                period_log = pd.concat([period_log, new_period], ignore_index=True)
-                period_log = period_log.drop_duplicates().sort_values("date")
-                period_log.to_csv(period_file, index=False)
-                st.success(f"{manual_period} saved.")
-            else:
-                st.warning("Date already exists.")
-        except FileNotFoundError:
-            new_period.to_csv(period_file, index=False)
-            st.success("First period entry saved.")
-
-    def get_user_average_cycle_length():
-        try:
-            df = pd.read_csv(period_file)
-            df["date"] = pd.to_datetime(df["date"])
-            df = df.sort_values("date")
-            if len(df) >= 2:
-                diffs = df["date"].diff().dropna().dt.days
-                return int(diffs.mean())
-        except Exception:
-            pass
-        return 28
-
-    def get_cycle_phase(days_since, cycle_length):
-        if days_since <= 4:
-            return "Menstruation"
-        elif 5 <= days_since <= 12:
-            return "Follicular"
-        elif 13 <= days_since <= 16:
-            return "Ovulation"
-        elif 17 <= days_since <= cycle_length:
-            return "Luteal"
-        else:
-            return "PMS or Irregular"
-
-    def suggest_exercise(cycle_phase):
-        suggestions = {
-            "Menstruation": "Gentle yoga, rest, short walks.",
-            "Follicular": "Strength training, cardio.",
-            "Ovulation": "High-intensity workouts.",
-            "Luteal": "Moderate movement: swimming, pilates.",
-            "PMS or Irregular": "Mindful movement and rest."
-        }
-        return suggestions.get(cycle_phase, "Move in a way that feels right.")
-
-    days_since = (today - last_period).days
-    user_cycle_length = get_user_average_cycle_length()
-    cycle_phase = get_cycle_phase(days_since, user_cycle_length)
-
-    st.subheader(f"Today’s Cycle Phase: {cycle_phase}")
-    st.caption(f"Based on your average cycle of ~{user_cycle_length} days")
-    st.markdown(f"**Suggested movement:** _{suggest_exercise(cycle_phase)}_")
