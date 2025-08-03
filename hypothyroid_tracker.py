@@ -3,7 +3,7 @@ import pandas as pd
 import os
 import tempfile
 import shutil
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 
 # ----- Setup -----
 os.makedirs("data", exist_ok=True)
@@ -53,12 +53,26 @@ if not check_password():
 st.set_page_config(page_title="Hypothyroid Tracker", layout="centered")
 st.title("Hypothyroid Tracker")
 
+# ----- Cycle calculation -----
+def calculate_cycle_day(last_period_date, avg_cycle_length=28):
+    today = date.today()
+    cycle_day = (today - last_period_date).days + 1
+    return cycle_day if cycle_day <= avg_cycle_length else (cycle_day % avg_cycle_length) or avg_cycle_length
+
+def get_cycle_phase(cycle_day):
+    if 1 <= cycle_day <= 5:
+        return "Menstruation phase"
+    elif 6 <= cycle_day <= 13:
+        return "Follicular phase"
+    elif 14 <= cycle_day <= 16:
+        return "Ovulation phase"
+    else:
+        return "Luteal phase"
+
 # ----- Tabs -----
 tab1, tab2 = st.tabs(["Daily Check-In", "Cycle Overview"])
 
-# ===================================================
-# ---- TAB 1: DAILY LOG ----
-# ===================================================
+# ---- Tab 1: Daily Log ----
 with tab1:
     st.header("How are you today?")
     selected_date = st.date_input("Log for date:", value=date.today())
@@ -143,17 +157,10 @@ with tab1:
 
         try:
             if os.path.exists(log_file):
-                # Create backup before changes
                 backup_file = "data/tracker_data_backup.csv"
                 pd.read_csv(log_file).to_csv(backup_file, index=False)
 
                 existing = pd.read_csv(log_file)
-
-                # Check column structure
-                if not all(col in existing.columns for col in new_entry.columns if col != "LogID"):
-                    st.error("⚠️ File structure seems to have changed – data was not saved. Please check your CSV file.")
-                    st.stop()
-
                 existing["LogID"] = existing["Date"].astype(str) + "_" + existing["Entry"]
                 existing = existing[existing["LogID"] != log_id]
                 df = pd.concat([existing, new_entry], ignore_index=True)
@@ -167,74 +174,40 @@ with tab1:
         except Exception as e:
             st.error(f"❌ An unexpected error occurred: {e}")
 
-
-# ===================================================
-# ---- TAB 2: CYCLE OVERVIEW ----
-# ===================================================
+# ---- Tab 2: Cycle Overview ----
 with tab2:
     st.header("Cycle Overview")
+    
+    # Register period
+    st.subheader("Log your last menstruation")
+    period_date = st.date_input("Start date of last period", value=date.today())
+    if st.button("Save period date"):
+        period_df = safe_load_csv(period_file)
+        new_period = pd.DataFrame([{"Date": period_date}])
+        period_df = pd.concat([period_df, new_period], ignore_index=True)
+        safe_save_csv(period_df, period_file)
+        st.success("✅ Menstruation date saved successfully!")
 
-    # Load cycle data
-    cycle_df = safe_load_csv(period_file)
+    # Show current cycle status
+    if os.path.exists(period_file):
+        period_data = safe_load_csv(period_file)
+        if not period_data.empty:
+            last_period = pd.to_datetime(period_data["Date"].max()).date()
+            cycle_day = calculate_cycle_day(last_period)
+            phase = get_cycle_phase(cycle_day)
 
-    # Input: Last menstruation date
-    last_period = st.date_input("Last menstruation start date:", value=date.today())
-
-    # Input: Average cycle length
-    avg_cycle = st.number_input("Average cycle length (days):", min_value=20, max_value=40, value=28)
-
-    if st.button("Save cycle data"):
-        cycle_entry = pd.DataFrame([{
-            "LastPeriod": last_period,
-            "AvgCycle": avg_cycle
-        }])
-        safe_save_csv(cycle_entry, period_file)
-        st.success("✅ Cycle information saved.")
-
-    # Display current cycle phase
-    if not cycle_df.empty:
-        last_date = pd.to_datetime(cycle_df.iloc[-1]["LastPeriod"])
-        cycle_length = int(cycle_df.iloc[-1]["AvgCycle"])
-        today = pd.to_datetime(date.today())
-        cycle_day = (today - last_date).days + 1
-        phase = "Menstrual" if cycle_day <= 5 else "Follicular" if cycle_day <= 14 else "Ovulation" if cycle_day <= 17 else "Luteal"
-
-        st.markdown(f"**Today is cycle day:** {cycle_day}")
-        st.markdown(f"**Phase:** {phase}")
-
-        # Training recommendation
-        training_tip = {
-            "Menstrual": "Focus on rest, light yoga or stretching.",
-            "Follicular": "Energy rising – try strength training or cardio.",
-            "Ovulation": "Peak energy – high-intensity workouts are great.",
-            "Luteal": "Moderate exercise, listen to your body and avoid overtraining."
-        }
-        st.info(f"💡 Training tip: {training_tip[phase]}")
-
-    # Combine all data for insights
-    log_df = safe_load_csv(log_file)
-    if not log_df.empty and not cycle_df.empty:
-        st.subheader("Personalized Insights")
-        avg_sleep = log_df["Sleep"].mean()
-        sugar_days = log_df[log_df["Sugar"] == True].shape[0]
-        tired_sugar = log_df[(log_df["Sugar"] == True) & (log_df["Tiredness"] >= 4)].shape[0]
-
-        if avg_sleep < 7:
-            st.write("😴 Try to aim for at least 7 hours of sleep – your average has been lower recently.")
-        if tired_sugar > 0:
-            st.write("🍭 You tend to feel more tired on days you eat sugar – consider reducing sugar intake.")
+            st.subheader("📅 Your Cycle Status")
+            st.write(f"Today is **day {cycle_day}** of your cycle.")
+            st.info(f"Current phase: **{phase}**")
+            st.progress(min(cycle_day / 28, 1.0))
 
     # Download button
-    if not log_df.empty:
-        combined_data = log_df.copy()
-        if not cycle_df.empty:
-            combined_data["LastPeriod"] = cycle_df.iloc[-1]["LastPeriod"]
-            combined_data["AvgCycle"] = cycle_df.iloc[-1]["AvgCycle"]
-
-        csv = combined_data.to_csv(index=False).encode('utf-8')
+    if os.path.exists(log_file):
+        df = safe_load_csv(log_file)
+        csv = df.to_csv(index=False).encode("utf-8")
         st.download_button(
-            label="📥 Download all data (CSV)",
+            label="📥 Download all logs as CSV",
             data=csv,
-            file_name=f"hypothyroid_tracker_data_{date.today()}.csv",
-            mime="text/csv"
+            file_name="tracker_data.csv",
+            mime="text/csv",
         )
