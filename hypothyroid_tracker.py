@@ -56,7 +56,9 @@ st.title("Hypothyroid Tracker")
 # ----- Tabs -----
 tab1, tab2 = st.tabs(["Daily Check-In", "Cycle Overview"])
 
-# ---- Tab 1: Daily Log ----
+# ===================================================
+# ---- TAB 1: DAILY LOG ----
+# ===================================================
 with tab1:
     st.header("How are you today?")
     selected_date = st.date_input("Log for date:", value=date.today())
@@ -164,3 +166,75 @@ with tab1:
 
         except Exception as e:
             st.error(f"❌ An unexpected error occurred: {e}")
+
+
+# ===================================================
+# ---- TAB 2: CYCLE OVERVIEW ----
+# ===================================================
+with tab2:
+    st.header("Cycle Overview")
+
+    # Load cycle data
+    cycle_df = safe_load_csv(period_file)
+
+    # Input: Last menstruation date
+    last_period = st.date_input("Last menstruation start date:", value=date.today())
+
+    # Input: Average cycle length
+    avg_cycle = st.number_input("Average cycle length (days):", min_value=20, max_value=40, value=28)
+
+    if st.button("Save cycle data"):
+        cycle_entry = pd.DataFrame([{
+            "LastPeriod": last_period,
+            "AvgCycle": avg_cycle
+        }])
+        safe_save_csv(cycle_entry, period_file)
+        st.success("✅ Cycle information saved.")
+
+    # Display current cycle phase
+    if not cycle_df.empty:
+        last_date = pd.to_datetime(cycle_df.iloc[-1]["LastPeriod"])
+        cycle_length = int(cycle_df.iloc[-1]["AvgCycle"])
+        today = pd.to_datetime(date.today())
+        cycle_day = (today - last_date).days + 1
+        phase = "Menstrual" if cycle_day <= 5 else "Follicular" if cycle_day <= 14 else "Ovulation" if cycle_day <= 17 else "Luteal"
+
+        st.markdown(f"**Today is cycle day:** {cycle_day}")
+        st.markdown(f"**Phase:** {phase}")
+
+        # Training recommendation
+        training_tip = {
+            "Menstrual": "Focus on rest, light yoga or stretching.",
+            "Follicular": "Energy rising – try strength training or cardio.",
+            "Ovulation": "Peak energy – high-intensity workouts are great.",
+            "Luteal": "Moderate exercise, listen to your body and avoid overtraining."
+        }
+        st.info(f"💡 Training tip: {training_tip[phase]}")
+
+    # Combine all data for insights
+    log_df = safe_load_csv(log_file)
+    if not log_df.empty and not cycle_df.empty:
+        st.subheader("Personalized Insights")
+        avg_sleep = log_df["Sleep"].mean()
+        sugar_days = log_df[log_df["Sugar"] == True].shape[0]
+        tired_sugar = log_df[(log_df["Sugar"] == True) & (log_df["Tiredness"] >= 4)].shape[0]
+
+        if avg_sleep < 7:
+            st.write("😴 Try to aim for at least 7 hours of sleep – your average has been lower recently.")
+        if tired_sugar > 0:
+            st.write("🍭 You tend to feel more tired on days you eat sugar – consider reducing sugar intake.")
+
+    # Download button
+    if not log_df.empty:
+        combined_data = log_df.copy()
+        if not cycle_df.empty:
+            combined_data["LastPeriod"] = cycle_df.iloc[-1]["LastPeriod"]
+            combined_data["AvgCycle"] = cycle_df.iloc[-1]["AvgCycle"]
+
+        csv = combined_data.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="📥 Download all data (CSV)",
+            data=csv,
+            file_name=f"hypothyroid_tracker_data_{date.today()}.csv",
+            mime="text/csv"
+        )
